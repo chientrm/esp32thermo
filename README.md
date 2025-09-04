@@ -15,7 +15,7 @@ This project reads a thermistor value using an analog pin, calculates the temper
 
 ## Wiring Diagram
 
-![Wiring diagram](image.png)
+![Wiring diagram](screenshots/image.png)
 
 ## Software
 
