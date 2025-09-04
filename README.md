@@ -17,6 +17,10 @@ This project reads a thermistor value using an analog pin, calculates the temper
 
 ![Wiring diagram](screenshots/image.png)
 
+### Real Wiring Photo
+
+![Wiring photo](wiring.jpg)
+
 ## Software
 
 - Uses the Arduino framework
