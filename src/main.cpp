@@ -16,6 +16,7 @@
 
 WebServer server(80);
 
+float g_smoothedTemp = 25;
 float readThermistorC()
 {
   int adc = analogRead(THERMISTOR_PIN);
@@ -32,7 +33,7 @@ float readThermistorC()
 
 void handleRoot()
 {
-  float tempC = readThermistorC();
+  float tempC = g_smoothedTemp;
   String html = R"rawliteral(
     <!DOCTYPE html>
     <html lang='en'>
@@ -105,7 +106,10 @@ void loop()
   if (now - lastUpdate >= 1000)
   {
     lastUpdate = now;
-    set_ledstrip_temp(readThermistorC());
+    float tempC = readThermistorC();
+    // Simple exponential smoothing
+    g_smoothedTemp = 0.8 * g_smoothedTemp + 0.2 * tempC;
+    set_ledstrip_temp(g_smoothedTemp);
     animate_ledstrip();
   }
 }

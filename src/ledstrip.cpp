@@ -20,37 +20,52 @@ void animate_ledstrip()
     // Example: 0°C = 0 LEDs, 60°C = all LEDs
     float minTemp = 10.0;
     float maxTemp = 40.0;
-    int pos = (int)((g_lastTemp - minTemp) / (maxTemp - minTemp) * (LED_COUNT - 1));
-    if (pos < 0)
-        pos = 0;
-    if (pos >= LED_COUNT)
-        pos = LED_COUNT - 1;
-    pos = (LED_COUNT - 1) - pos; // invert strip for upside-down mounting
-
-    // Color mapping: blue (cool), white (mid), orange/yellow (hot)
-
     float tempNorm = (g_lastTemp - minTemp) / (maxTemp - minTemp);
     if (tempNorm < 0.0)
         tempNorm = 0.0;
     if (tempNorm > 1.0)
         tempNorm = 1.0;
+    int pos = (int)(tempNorm * (LED_COUNT - 1));
+    pos = (LED_COUNT - 1) - pos; // invert for upside-down
 
+    // Classic temperature bands
+    float tempC = g_lastTemp;
     uint8_t r, g, b;
-    if (tempNorm < 0.5)
+    if (tempC <= 22)
     {
-        // Blue to white
-        float t = tempNorm / 0.5;
-        r = (uint8_t)(255 * t);
-        g = (uint8_t)(255 * t);
-        b = 255;
+        r = 30;
+        g = 144;
+        b = 255; // Deep Blue
+    }
+    else if (tempC <= 25)
+    {
+        r = 0;
+        g = 255;
+        b = 247; // Cyan
+    }
+    else if (tempC <= 28)
+    {
+        r = 173;
+        g = 255;
+        b = 47; // Green-Yellow
+    }
+    else if (tempC <= 31)
+    {
+        r = 255;
+        g = 255;
+        b = 0; // Yellow
+    }
+    else if (tempC <= 34)
+    {
+        r = 255;
+        g = 140;
+        b = 0; // Orange
     }
     else
     {
-        // White to orange/yellow
-        float t = (tempNorm - 0.5) / 0.5;
         r = 255;
-        g = (uint8_t)(255 * (1.0 - 0.5 * t)); // fade to yellow
-        b = (uint8_t)(255 * (1.0 - t));       // fade to zero
+        g = 48;
+        b = 48; // Red
     }
     for (int i = 0; i < LED_COUNT; i++)
     {
