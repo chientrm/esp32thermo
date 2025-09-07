@@ -3,7 +3,9 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoOTA.h>
+
 #include "../include/wifi_secrets.h"
+#include "ledstrip.h"
 
 // Thermistor parameters
 #define THERMISTOR_PIN 34        // GPIO34 (ADC1_CH6)
@@ -85,6 +87,9 @@ void setup()
   ArduinoOTA.begin();
   Serial.println("OTA Ready");
 
+  // LED strip setup
+  setup_ledstrip();
+
   // Start web server
   server.on("/", handleRoot);
   server.begin();
@@ -95,4 +100,12 @@ void loop()
 {
   ArduinoOTA.handle();
   server.handleClient();
+  static unsigned long lastUpdate = 0;
+  unsigned long now = millis();
+  if (now - lastUpdate >= 1000)
+  {
+    lastUpdate = now;
+    set_ledstrip_temp(readThermistorC());
+    animate_ledstrip();
+  }
 }
