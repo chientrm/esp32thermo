@@ -14,7 +14,6 @@ void handleRoot(WebServer &server)
     size_t freeBytes = totalBytes > usedBytes ? totalBytes - usedBytes : 0;
     float totalMB = totalBytes / 1048576.0;
     float usedMB = usedBytes / 1048576.0;
-    float freeMB = freeBytes / 1048576.0;
     char html[2048];
     snprintf(html, sizeof(html),
              "<!DOCTYPE html>\n"
@@ -44,12 +43,12 @@ void handleRoot(WebServer &server)
              "  <div class='container'>\n"
              "    <h1>Temperature Monitor</h1>\n"
              "    <div class='temp'>Temperature: <b>%.2f &deg;C</b></div>\n"
-             "    <div class='spiffs'>SPIFFS: %.2f MB used / %.2f MB total (<b>%.2f MB free</b>)</div>\n"
+             "    <div class='spiffs'>SPIFFS: %.2f MB used / %.2f MB total</div>\n"
              "    <button onclick='location.reload()'>Reload</button>\n"
              "    <button class='wipe-btn' onclick='wipeLog()'>Wipe Temp Log</button>\n"
              "    <br><br>\n"
              "    <a href='/log'>Download Temp Log</a>\n",
-             tempC, usedMB, totalMB, freeMB);
+             tempC, usedMB, totalMB);
     String page = html;
     if (g_logError)
     {
