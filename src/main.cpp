@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoOTA.h>
+#include <SPIFFS.h>
 #include <ESPmDNS.h>
 #include "../include/wifi_secrets.h"
 #include "ledstrip.h"
@@ -12,6 +13,9 @@
 // --- Globals ---
 WebServer server(80);
 float g_smoothedTemp = 25;
+
+const char *LOG_FILE = "/temp_log.txt";
+bool g_logError = false; // Set true if log write fails
 
 // --- Web Handler ---
 void handleRoot()
@@ -29,6 +33,7 @@ void handleRoot()
         .container { background: #fff; margin: 40px auto; padding: 30px 20px; border-radius: 10px; box-shadow: 0 2px 8px #aaa; max-width: 350px; }
         h1 { color: #0077cc; }
         .temp { font-size: 2.5em; margin: 20px 0; }
+        .error { color: #c00; font-weight: bold; margin: 10px 0; }
         button { background: #0077cc; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; font-size: 1em; cursor: pointer; }
         button:hover { background: #005fa3; }
       </style>
@@ -43,11 +48,36 @@ void handleRoot()
   html += String(tempC, 2);
   html += R"rawliteral( &deg;C</b></div>
         <button onclick='location.reload()'>Reload</button>
+        <br><br>
+        <a href="/log">Download Temp Log</a>
+  )rawliteral";
+  if (g_logError)
+  {
+    html += "<div class='error'>Log error: SPIFFS full or write failed!</div>";
+  }
+  html += R"rawliteral(
       </div>
     </body>
     </html>
   )rawliteral";
   server.send(200, "text/html", html);
+}
+
+void handleLogDownload()
+{
+  File logFile = SPIFFS.open(LOG_FILE, "r");
+  if (!logFile)
+  {
+    server.send(404, "text/plain", "Log file not found");
+    return;
+  }
+  String logData;
+  while (logFile.available())
+  {
+    logData += logFile.readStringUntil('\n') + "\n";
+  }
+  logFile.close();
+  server.send(200, "text/plain", logData);
 }
 
 void setup()
@@ -91,6 +121,7 @@ void setup()
     }
     // --- Web Server ---
     server.on("/", handleRoot);
+    server.on("/log", handleLogDownload);
     server.begin();
     Serial.println("Web server started.");
   }
@@ -135,5 +166,18 @@ void loop()
     g_smoothedTemp = 0.8 * g_smoothedTemp + 0.2 * tempC;
     set_ledstrip_temp(g_smoothedTemp);
     animate_ledstrip();
+
+    // Log temperature to SPIFFS
+    File logFile = SPIFFS.open(LOG_FILE, "a");
+    if (logFile)
+    {
+      logFile.printf("%lu,%.2f\n", now, g_smoothedTemp);
+      logFile.close();
+      g_logError = false;
+    }
+    else
+    {
+      g_logError = true;
+    }
   }
 }
