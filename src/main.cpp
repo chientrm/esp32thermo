@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoOTA.h>
+#include <ESPmDNS.h>
 #include "../include/wifi_secrets.h"
 #include "ledstrip.h"
 #include "wifi_status_led.h"
@@ -79,6 +80,15 @@ void setup()
     ArduinoOTA.setHostname("esp32thermo");
     ArduinoOTA.begin();
     Serial.println("OTA Ready");
+    // --- mDNS ---
+    if (MDNS.begin("esp32thermo"))
+    {
+      Serial.println("mDNS responder started");
+    }
+    else
+    {
+      Serial.println("Error setting up mDNS responder!");
+    }
     // --- Web Server ---
     server.on("/", handleRoot);
     server.begin();
