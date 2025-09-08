@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include "webserver.h"
 #include <ArduinoOTA.h>
 #include <SPIFFS.h>
 #include <ESPmDNS.h>
@@ -14,77 +15,17 @@
 WebServer server(80);
 float g_smoothedTemp = 25;
 
-const char *LOG_FILE = "/temp_log.txt";
-bool g_logError = false; // Set true if log write fails
-
-// --- Web Handler ---
-void handleRoot()
-{
-  float tempC = g_smoothedTemp;
-  String html = R"rawliteral(
-    <!DOCTYPE html>
-    <html lang='en'>
-    <head>
-      <meta charset='UTF-8'>
-      <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-      <title>ESP32 Thermistor</title>
-      <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; color: #222; text-align: center; margin: 0; padding: 0; }
-        .container { background: #fff; margin: 40px auto; padding: 30px 20px; border-radius: 10px; box-shadow: 0 2px 8px #aaa; max-width: 350px; }
-        h1 { color: #0077cc; }
-        .temp { font-size: 2.5em; margin: 20px 0; }
-        .error { color: #c00; font-weight: bold; margin: 10px 0; }
-        button { background: #0077cc; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; font-size: 1em; cursor: pointer; }
-        button:hover { background: #005fa3; }
-      </style>
-      <script>
-        setTimeout(function(){ location.reload(); }, 1000);
-      </script>
-    </head>
-    <body>
-      <div class='container'>
-        <h1>Temperature Monitor</h1>
-        <div class='temp'>Temperature: <b>)rawliteral";
-  html += String(tempC, 2);
-  html += R"rawliteral( &deg;C</b></div>
-        <button onclick='location.reload()'>Reload</button>
-        <br><br>
-        <a href="/log">Download Temp Log</a>
-  )rawliteral";
-  if (g_logError)
-  {
-    html += "<div class='error'>Log error: SPIFFS full or write failed!</div>";
-  }
-  html += R"rawliteral(
-      </div>
-    </body>
-    </html>
-  )rawliteral";
-  server.send(200, "text/html", html);
-}
-
-void handleLogDownload()
-{
-  File logFile = SPIFFS.open(LOG_FILE, "r");
-  if (!logFile)
-  {
-    server.send(404, "text/plain", "Log file not found");
-    return;
-  }
-  String logData;
-  while (logFile.available())
-  {
-    logData += logFile.readStringUntil('\n') + "\n";
-  }
-  logFile.close();
-  server.send(200, "text/plain", logData);
-}
-
 void setup()
 {
   // --- Serial ---
   Serial.begin(115200);
   delay(1000);
+
+  // --- SPIFFS ---
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("SPIFFS Mount Failed!");
+  }
 
   // --- WiFi ---
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -120,10 +61,10 @@ void setup()
       Serial.println("Error setting up mDNS responder!");
     }
     // --- Web Server ---
-    server.on("/", handleRoot);
-    server.on("/log", handleLogDownload);
+    setupWebServer(server);
     server.begin();
     Serial.println("Web server started.");
+    setWebServerTempPtr(&g_smoothedTemp);
   }
   else
   {
