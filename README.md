@@ -55,7 +55,7 @@ This project uses an ESP32 to read temperature from a thermistor, display it on 
 5. The RGB LED shows WiFi status:
 
 - **Green**: WiFi connected
-- **Red**: WiFi not connected
+- **Blue**: WiFi not connected
 
 ---
 
