@@ -1,59 +1,18 @@
-#include <Arduino.h>
-
-#define LED_RED_PIN 25
-#define LED_GREEN_PIN 26
-#define LED_BLUE_PIN 27
-
+// --- Includes ---
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoOTA.h>
-
 #include "../include/wifi_secrets.h"
 #include "ledstrip.h"
+#include "wifi_status_led.h"
+#include "thermistor.h"
 
-// Thermistor parameters
-#define THERMISTOR_PIN 34        // GPIO34 (ADC1_CH6)
-#define SERIES_RESISTOR 10000    // 10k resistor
-#define NOMINAL_RESISTANCE 10000 // 10k thermistor
-#define NOMINAL_TEMPERATURE 25   // 25°C
-#define B_COEFFICIENT 3950       // Beta coefficient
-
-void setWifiLed(bool connected)
-{
-  if (connected)
-  {
-    // Green: WiFi connected
-    digitalWrite(LED_RED_PIN, LOW);
-    digitalWrite(LED_GREEN_PIN, HIGH);
-    digitalWrite(LED_BLUE_PIN, LOW);
-  }
-  else
-  {
-    // Red: WiFi not connected
-    digitalWrite(LED_RED_PIN, HIGH);
-    digitalWrite(LED_GREEN_PIN, LOW);
-    digitalWrite(LED_BLUE_PIN, LOW);
-  }
-}
-
+// --- Globals ---
 WebServer server(80);
-
 float g_smoothedTemp = 25;
-float readThermistorC()
-{
-  int adc = analogRead(THERMISTOR_PIN);
-  float resistance = SERIES_RESISTOR / ((4095.0 / adc) - 1.0);
-  float steinhart;
-  steinhart = resistance / NOMINAL_RESISTANCE;       // (R/Ro)
-  steinhart = log(steinhart);                        // ln(R/Ro)
-  steinhart /= B_COEFFICIENT;                        // 1/B * ln(R/Ro)
-  steinhart += 1.0 / (NOMINAL_TEMPERATURE + 273.15); // + (1/To)
-  steinhart = 1.0 / steinhart;                       // Invert
-  steinhart -= 273.15;                               // convert to °C
-  return steinhart;
-}
 
+// --- Web Handler ---
 void handleRoot()
 {
   float tempC = g_smoothedTemp;
@@ -92,15 +51,17 @@ void handleRoot()
 
 void setup()
 {
+  // --- Serial ---
   Serial.begin(115200);
   delay(1000);
 
+  // --- WiFi ---
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi");
   unsigned long wifiStart = millis();
   bool wifiConnected = false;
   while (millis() - wifiStart < 5000)
-  { // Try for 5 seconds
+  {
     if (WiFi.status() == WL_CONNECTED)
     {
       wifiConnected = true;
@@ -114,11 +75,11 @@ void setup()
     Serial.println();
     Serial.print("Connected! IP address: ");
     Serial.println(WiFi.localIP());
-    // OTA setup
+    // --- OTA ---
     ArduinoOTA.setHostname("esp32thermo");
     ArduinoOTA.begin();
     Serial.println("OTA Ready");
-    // Start web server
+    // --- Web Server ---
     server.on("/", handleRoot);
     server.begin();
     Serial.println("Web server started.");
@@ -128,17 +89,20 @@ void setup()
     Serial.println();
     Serial.println("WiFi not connected. Running in offline mode.");
   }
-  // RGB LED setup
-  pinMode(LED_RED_PIN, OUTPUT);
-  pinMode(LED_GREEN_PIN, OUTPUT);
-  pinMode(LED_BLUE_PIN, OUTPUT);
-  // LED strip setup
+
+  // --- WiFi Status LED ---
+  setupWifiStatusLed();
+
+  // --- LED Strip ---
   setup_ledstrip();
 }
 
 void loop()
 {
-  setWifiLed(WiFi.status() == WL_CONNECTED);
+  // --- Update WiFi Status LED ---
+  setWifiStatusLed(WiFi.status() == WL_CONNECTED);
+
+  // --- Network Handlers ---
   if (WiFi.status() == WL_CONNECTED)
   {
     ArduinoOTA.handle();
@@ -146,10 +110,11 @@ void loop()
   }
   else
   {
-    // Offline mode: only run BLUE and temperature logic
+    // Offline mode: only run LED and temperature logic
     // Optionally print status
     // Serial.println("Offline mode: WiFi not connected.");
   }
+
   static unsigned long lastUpdate = 0;
   unsigned long now = millis();
   if (now - lastUpdate >= 1000)
