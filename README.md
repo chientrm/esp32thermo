@@ -1,3 +1,24 @@
+## Additional Features
+
+### NTP Time Sync & Accurate Logging
+
+When WiFi is available, the ESP32 automatically synchronizes its clock using NTP servers (`pool.ntp.org`, `time.nist.gov`).
+
+Temperature readings are logged to SPIFFS with a human-readable timestamp (YYYY-MM-DD HH:MM:SS) when NTP sync is successful. If NTP is unavailable, logs fall back to using the system uptime in milliseconds.
+
+#### Temperature Log File Format
+
+The temperature log (`/temp_log.txt` on SPIFFS) records each entry with a timestamp and temperature value:
+
+2025-09-08 14:23:01,26.45
+2025-09-08 14:24:01,26.47
+
+If NTP time is not available, the log will use the system uptime in milliseconds instead:
+
+1234567,26.45
+
+You can download or wipe the log file from the web interface.
+
 # ESP32 Thermistor & LED Web Monitor
 
 This project uses an ESP32 to read temperature from a thermistor, display it on a web page, and show the value on a WS2812/NeoPixel LED strip. It also uses an RGB LED to indicate WiFi connection status.
