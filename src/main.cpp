@@ -74,33 +74,54 @@ void setup()
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  unsigned long wifiStart = millis();
+  bool wifiConnected = false;
+  while (millis() - wifiStart < 5000)
+  { // Try for 5 seconds
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      wifiConnected = true;
+      break;
+    }
     delay(500);
     Serial.print(".");
   }
-  Serial.println();
-  Serial.print("Connected! IP address: ");
-  Serial.println(WiFi.localIP());
-
-  // OTA setup
-  ArduinoOTA.setHostname("esp32thermo");
-  ArduinoOTA.begin();
-  Serial.println("OTA Ready");
-
+  if (wifiConnected)
+  {
+    Serial.println();
+    Serial.print("Connected! IP address: ");
+    Serial.println(WiFi.localIP());
+    // OTA setup
+    ArduinoOTA.setHostname("esp32thermo");
+    ArduinoOTA.begin();
+    Serial.println("OTA Ready");
+    // Start web server
+    server.on("/", handleRoot);
+    server.begin();
+    Serial.println("Web server started.");
+  }
+  else
+  {
+    Serial.println();
+    Serial.println("WiFi not connected. Running in offline mode.");
+  }
   // LED strip setup
   setup_ledstrip();
-
-  // Start web server
-  server.on("/", handleRoot);
-  server.begin();
-  Serial.println("Web server started.");
 }
 
 void loop()
 {
-  ArduinoOTA.handle();
-  server.handleClient();
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    ArduinoOTA.handle();
+    server.handleClient();
+  }
+  else
+  {
+    // Offline mode: only run LED and temperature logic
+    // Optionally print status
+    // Serial.println("Offline mode: WiFi not connected.");
+  }
   static unsigned long lastUpdate = 0;
   unsigned long now = millis();
   if (now - lastUpdate >= 1000)
