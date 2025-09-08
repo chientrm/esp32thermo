@@ -10,6 +10,8 @@
 #include "ledstrip.h"
 #include "wifi_status_led.h"
 #include "thermistor.h"
+// For time functions
+#include <time.h>
 
 // --- Globals ---
 WebServer server(80);
@@ -60,6 +62,27 @@ void setup()
     {
       Serial.println("Error setting up mDNS responder!");
     }
+    // --- NTP Time Sync ---
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    Serial.print("Waiting for NTP time sync");
+    time_t now = time(nullptr);
+    int ntpWait = 0;
+    while (now < 1609459200 && ntpWait < 10)
+    { // 2021-01-01 epoch as threshold
+      delay(500);
+      Serial.print(".");
+      now = time(nullptr);
+      ntpWait++;
+    }
+    Serial.println();
+    if (now >= 1609459200)
+    {
+      Serial.println("NTP time synced.");
+    }
+    else
+    {
+      Serial.println("NTP sync failed, using millis for log timestamp.");
+    }
     // --- Web Server ---
     setupWebServer(server);
     server.begin();
@@ -108,11 +131,22 @@ void loop()
     set_ledstrip_temp(g_smoothedTemp);
     animate_ledstrip();
 
-    // Log temperature to SPIFFS
+    // Log temperature to SPIFFS with datetime
     File logFile = SPIFFS.open(LOG_FILE, "a");
     if (logFile)
     {
-      logFile.printf("%lu,%.2f\n", now, g_smoothedTemp);
+      time_t tnow = time(nullptr);
+      struct tm *tm_info = localtime(&tnow);
+      char timeStr[32];
+      if (tnow >= 1609459200 && tm_info)
+      {
+        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", tm_info);
+        logFile.printf("%s,%.2f\n", timeStr, g_smoothedTemp);
+      }
+      else
+      {
+        logFile.printf("%lu,%.2f\n", now, g_smoothedTemp);
+      }
       logFile.close();
       g_logError = false;
     }
