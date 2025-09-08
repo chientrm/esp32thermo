@@ -1,3 +1,8 @@
+#include <Arduino.h>
+
+#define LED_RED_PIN 25
+#define LED_GREEN_PIN 26
+#define LED_BLUE_PIN 27
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -13,6 +18,24 @@
 #define NOMINAL_RESISTANCE 10000 // 10k thermistor
 #define NOMINAL_TEMPERATURE 25   // 25°C
 #define B_COEFFICIENT 3950       // Beta coefficient
+
+void setWifiLed(bool connected)
+{
+  if (connected)
+  {
+    // Green: WiFi connected
+    digitalWrite(LED_RED_PIN, LOW);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    digitalWrite(LED_BLUE_PIN, LOW);
+  }
+  else
+  {
+    // Red: WiFi not connected
+    digitalWrite(LED_RED_PIN, HIGH);
+    digitalWrite(LED_GREEN_PIN, LOW);
+    digitalWrite(LED_BLUE_PIN, LOW);
+  }
+}
 
 WebServer server(80);
 
@@ -105,12 +128,17 @@ void setup()
     Serial.println();
     Serial.println("WiFi not connected. Running in offline mode.");
   }
+  // RGB LED setup
+  pinMode(LED_RED_PIN, OUTPUT);
+  pinMode(LED_GREEN_PIN, OUTPUT);
+  pinMode(LED_BLUE_PIN, OUTPUT);
   // LED strip setup
   setup_ledstrip();
 }
 
 void loop()
 {
+  setWifiLed(WiFi.status() == WL_CONNECTED);
   if (WiFi.status() == WL_CONNECTED)
   {
     ArduinoOTA.handle();
@@ -118,7 +146,7 @@ void loop()
   }
   else
   {
-    // Offline mode: only run LED and temperature logic
+    // Offline mode: only run BLUE and temperature logic
     // Optionally print status
     // Serial.println("Offline mode: WiFi not connected.");
   }
