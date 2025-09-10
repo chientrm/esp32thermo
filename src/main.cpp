@@ -10,12 +10,13 @@
 #include "ledstrip.h"
 #include "wifi_status_led.h"
 #include "thermistor.h"
-// For time functions
 #include <time.h>
+#include "ds3231_helper.h"
 
 // --- Globals ---
 WebServer server(80);
 float g_smoothedTemp = 25;
+bool g_ntpSynced = false;
 
 void setup()
 {
@@ -28,6 +29,9 @@ void setup()
   {
     Serial.println("SPIFFS Mount Failed!");
   }
+
+  // --- DS3231 RTC ---
+  initDS3231();
 
   // --- WiFi ---
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -65,23 +69,19 @@ void setup()
     // --- NTP Time Sync ---
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
     Serial.print("Waiting for NTP time sync");
+    delay(2000); // Give NTP a moment to sync
     time_t now = time(nullptr);
-    int ntpWait = 0;
-    while (now < 1609459200 && ntpWait < 10)
-    { // 2021-01-01 epoch as threshold
-      delay(500);
-      Serial.print(".");
-      now = time(nullptr);
-      ntpWait++;
-    }
     Serial.println();
     if (now >= 1609459200)
     {
       Serial.println("NTP time synced.");
+      g_ntpSynced = true;
+      updateDS3231FromNTP();
     }
     else
     {
       Serial.println("NTP sync failed, using millis for log timestamp.");
+      g_ntpSynced = false;
     }
     // --- Web Server ---
     setupWebServer(server);
@@ -131,17 +131,14 @@ void loop()
     set_ledstrip_temp(g_smoothedTemp);
     animate_ledstrip();
 
-    // Log temperature to SPIFFS with datetime
+    // Log temperature to SPIFFS with datetime (always use RTC, fallback to millis if RTC fails)
     File logFile = SPIFFS.open(LOG_FILE, "a");
     if (logFile)
     {
-      time_t tnow = time(nullptr);
-      struct tm *tm_info = localtime(&tnow);
-      char timeStr[32];
-      if (tnow >= 1609459200 && tm_info)
+      String rtcTime = getDS3231DateTime();
+      if (rtcTime.length() > 0 && rtcTime != "1970-01-01 00:00:00")
       {
-        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", tm_info);
-        logFile.printf("%s,%.2f\n", timeStr, g_smoothedTemp);
+        logFile.printf("%s,%.2f\n", rtcTime.c_str(), g_smoothedTemp);
       }
       else
       {

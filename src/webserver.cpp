@@ -1,5 +1,8 @@
 #include "webserver.h"
 #include <SPIFFS.h>
+#include "ds3231_helper.h"
+
+extern bool g_ntpSynced; // Add this global in main.cpp
 
 bool g_logError = false;
 const char *LOG_FILE = "/temp_log.txt";
@@ -14,6 +17,8 @@ void handleRoot(WebServer &server)
     size_t freeBytes = totalBytes > usedBytes ? totalBytes - usedBytes : 0;
     float totalMB = totalBytes / 1048576.0;
     float usedMB = usedBytes / 1048576.0;
+    String rtcTime = getDS3231DateTime();
+    const char *ntpStatus = g_ntpSynced ? "<span style='color:green'>NTP synced</span>" : "<span style='color:red'>NTP not synced</span>";
     char html[2048];
     snprintf(html, sizeof(html),
              "<!DOCTYPE html>\n"
@@ -27,6 +32,8 @@ void handleRoot(WebServer &server)
              "    .container { background: #fff; margin: 40px auto; padding: 30px 20px; border-radius: 10px; box-shadow: 0 2px 8px #aaa; max-width: 350px; }\n"
              "    h1 { color: #0077cc; }\n"
              "    .temp { font-size: 2.5em; margin: 20px 0; }\n"
+             "    .rtc { font-size: 1.1em; color: #333; margin: 10px 0; }\n"
+             "    .ntp { font-size: 1em; margin: 8px 0; }\n"
              "    .error { color: #c00; font-weight: bold; margin: 10px 0; }\n"
              "    .spiffs { font-size: 0.95em; color: #555; margin: 10px 0; }\n"
              "    button, .wipe-btn { background: #0077cc; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; font-size: 1em; cursor: pointer; margin: 5px; }\n"
@@ -43,12 +50,14 @@ void handleRoot(WebServer &server)
              "  <div class='container'>\n"
              "    <h1>Temperature Monitor</h1>\n"
              "    <div class='temp'>Temperature: <b>%.2f &deg;C</b></div>\n"
+             "    <div class='rtc'>RTC Time: <b>%s</b></div>\n"
+             "    <div class='ntp'>NTP Status: %s</div>\n"
              "    <div class='spiffs'>SPIFFS: %.2f MB used / %.2f MB total</div>\n"
              "    <button onclick='location.reload()'>Reload</button>\n"
              "    <button class='wipe-btn' onclick='wipeLog()'>Wipe Temp Log</button>\n"
              "    <br><br>\n"
              "    <a href='/log'>Download Temp Log</a>\n",
-             tempC, usedMB, totalMB);
+             tempC, rtcTime.c_str(), ntpStatus, usedMB, totalMB);
     String page = html;
     if (g_logError)
     {
